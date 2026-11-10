@@ -14,8 +14,8 @@ SLOTS = ("left", "middle", "right")
 
 def features(frame):
     # Work in the recorded channel order. Neutral metal is darker than the table.
-    b, g, r = cv2.split(frame.astype(np.int16))
-    metal = ((g < 134) & (b - r < 20) & (g - r < 23)).astype(np.float32)
+    red, g, blue = cv2.split(frame.astype(np.int16))
+    metal = ((g < 134) & (red - blue < 20) & (g - blue < 23)).astype(np.float32)
     metal[:118] = 0
     metal[:, :25] = metal[:, 300:] = 0
     # Match the bottom rim, usually visible even when a glove covers the top.
@@ -26,7 +26,7 @@ def features(frame):
     score = np.pad(score, ((15, 6), (18, 18)), constant_values=-1)
     score[:125] = -1
     score[221:] = -1
-    green = ((g - r > 16) & (g - b > 10) & (g < 175)).astype(np.uint8)
+    green = ((g - blue > 16) & (g - red > 10) & (g < 175)).astype(np.uint8)
     green[:130] = 0
     green[:, :30] = green[:, 300:] = 0
     _, _, stats, centers = cv2.connectedComponentsWithStats(green)
@@ -79,7 +79,7 @@ def frames(dataset):
             yield cv2.resize(image, (320, 240), interpolation=cv2.INTER_AREA)
 
 
-def analyze(images, times, initial=None):
+def analyze(images, times, initial=None, on_frame=None):
     target = SLOTS.index(initial) if initial else None
     last_cube = None
     anchor = None
@@ -112,6 +112,9 @@ def analyze(images, times, initial=None):
             rank = list(np.argsort(points[:,0])).index(target)
             decisions.append(dict(frame=i, time=round(float(t),3), still_from=round(float(start),3), slot=SLOTS[rank]))
             fired = True
+        if on_frame is not None:
+            elapsed = float(t - start) if moved and good.all() and target is not None and not cubes else 0.0
+            on_frame(i, points, good, cubes, target, elapsed, decisions[-1] if decisions else None)
         history.append((points.copy(), good.copy(), cubes))
     return dict(initial=SLOTS[target] if target is not None else None,
                 initial_source="assumed" if initial else "observed cover" if target is not None else "unknown",
