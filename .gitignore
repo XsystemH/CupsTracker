@@ -2,3 +2,5 @@ __pycache__/
 .venv/
 *.hdf5
 *.csv
+.DS_Store
+.venv-live/

@@ -80,6 +80,11 @@ def frames(dataset):
 
 
 def analyze(images, times, initial=None, on_frame=None):
+    return track_stream(zip(images, times), initial, on_frame, keep_history=True)
+
+
+def track_stream(samples, initial=None, on_frame=None, keep_history=False):
+    previous_time = None
     target = SLOTS.index(initial) if initial else None
     last_cube = None
     anchor = None
@@ -87,7 +92,7 @@ def analyze(images, times, initial=None, on_frame=None):
     moved = False
     decisions = []
     history = []
-    for i, (frame, t) in enumerate(zip(images, times)):
+    for i, (frame, t) in enumerate(samples):
         score, cubes = features(frame)
         if i == 0:
             points = np.array(sorted(detections(score), key=lambda p: p[0]))
@@ -105,7 +110,7 @@ def analyze(images, times, initial=None, on_frame=None):
                 if abs(delta[nearest,0]) < 14 and abs(delta[nearest,1]) < 18:
                     target = nearest
         moved |= np.max(np.linalg.norm(points - origin, axis=1)) > 20
-        if anchor is None or not good.all() or not was_visible or t - times[i-1] > 0.15 or np.max(np.linalg.norm(points - anchor, axis=1)) > 3:
+        if anchor is None or not good.all() or not was_visible or t - previous_time > 0.15 or np.max(np.linalg.norm(points - anchor, axis=1)) > 3:
             anchor, start, fired = points.copy(), t, False
         was_visible = good.all()
         if moved and good.all() and not fired and t - start >= 3 and target is not None and not cubes:
@@ -115,12 +120,16 @@ def analyze(images, times, initial=None, on_frame=None):
         if on_frame is not None:
             elapsed = float(t - start) if moved and good.all() and target is not None and not cubes else 0.0
             on_frame(i, points, good, cubes, target, elapsed, decisions[-1] if decisions else None)
-        history.append((points.copy(), good.copy(), cubes))
+        previous_time = t
+        if keep_history:
+            history.append((points.copy(), good.copy(), cubes))
+    if previous_time is None:
+        raise ValueError("No frames received")
     return dict(initial=SLOTS[target] if target is not None else None,
                 initial_source="assumed" if initial else "observed cover" if target is not None else "unknown",
                 decisions=decisions,
                 last_slot=SLOTS[list(np.argsort(points[:, 0])).index(target)] if target is not None else None,
-                ending_still_seconds=round(float(times[-1] - start), 3) if was_visible else 0), history
+                ending_still_seconds=round(float(previous_time - start), 3) if was_visible else 0), history
 
 
 def main():

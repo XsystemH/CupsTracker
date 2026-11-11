@@ -38,3 +38,30 @@ A/B/C 是开场从左到右的杯子身份。黄框标目标杯，橙框及问�
 ```sh
 python export_video.py ~/Downloads/swap_cups/episode_001.hdf5 examples/episode_001_tracking.mp4
 ```
+
+## Linux 相机实时测试
+
+在接相机的 Ubuntu 桌面终端运行（Python 3.10+，CPU）。仓库设为私有，克隆时请用有访问权的 GitHub 账号。
+
+```sh
+sudo apt update
+sudo apt install -y git python3-venv v4l-utils libgl1 libglib2.0-0
+git clone https://github.com/XsystemH/swap-cup-tracker.git
+cd swap-cup-tracker
+python3 -m venv .venv-live
+source .venv-live/bin/activate
+python -m pip install -r requirements-live.txt
+python live.py --list
+v4l2-ctl --list-devices
+```
+
+选对着整张桌子的固定外部 RGB 相机。同一台相机可能列出多个节点；下面以 /dev/video2 为例。查看其格式，选有 YUYV 或 MJPG 等彩色采集格式的节点，再启动：
+
+```sh
+v4l2-ctl -d /dev/video2 --list-formats-ext
+python live.py --camera /dev/video2
+```
+
+也可把 --list 打印的 /dev/v4l/by-id/... 路径直接传给 --camera，避免重新插拔后编号变化。程序请求 640×480、30 FPS，启动时打印实际收到的分辨率。画面中让三杯横向排开、位于下半幅，杯高约占画面高度的五分之一，参照上方示例图调整相机角度和距离。先摆好三杯、露出绿色方块，按 R 重新初始化。确认 A/B/C 分别贴在三个杯底，方块有绿圈，盖住它后应在对应杯上出现黄框。交换后让全部杯子静止三秒，观察决定和揭杯是否一致。橙框表示运动预测。按 R 开新一轮，Q 或 Esc 退出。
+
+纯 SSH 终端可运行 `python live.py --camera /dev/video2 --headless`，答案输出到终端，Ctrl+C 结束。权限不足时用 `ls -l /dev/video2` 和 `id` 检查设备访问权限；若所属组为 video，可用 `sudo usermod -aG video "$USER"` 并重新登录。若无法采图，先关闭占用相机的程序，并确认节点支持彩色采集。若能采图但三杯编号错位，先对照示例调整构图，再按 R 重置。
