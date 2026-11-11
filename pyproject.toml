@@ -1,0 +1,14 @@
+[project]
+name = "cupstracker"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["h5py>=3.10,<4", "numpy>=1.26,<3"]
+
+[dependency-groups]
+desktop = ["opencv-python>=4.9,<6"]
+headless = ["opencv-python-headless>=4.9,<6"]
+
+[tool.uv]
+package = false
+default-groups = ["desktop"]
+conflicts = [[{ group = "desktop" }, { group = "headless" }]]

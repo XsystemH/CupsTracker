@@ -6,15 +6,13 @@
 
 ## 运行
 
-Python 3.10+，Linux 或 macOS CPU。当前已在 macOS CPU 验证。原始 HDF5 文件放在仓库外。
+首次安装 uv 可用下方 Linux 安装命令。仓库通过 .python-version 选择 Python 3.13，uv.lock 固定各平台适用的依赖版本。已有仓库执行 `git pull --ff-only` 后再次运行对应模式的 `uv sync --locked` 即可更新。当前已在 macOS CPU 验证。原始 HDF5 文件放在仓库外。
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-python tracker.py ~/Downloads/swap_cups/episode_001.hdf5 --tracks /tmp/001.csv
-python tracker.py ~/Downloads/swap_cups/episode_002.hdf5
-python tracker.py ~/Downloads/swap_cups/episode_000.hdf5 --initial middle
+uv sync --locked
+uv run --locked tracker.py ~/Downloads/swap_cups/episode_001.hdf5 --tracks /tmp/001.csv
+uv run --locked tracker.py ~/Downloads/swap_cups/episode_002.hdf5
+uv run --locked tracker.py ~/Downloads/swap_cups/episode_000.hdf5 --initial middle
 ```
 
 CSV 每帧三行。initial_slot 是杯子的初始身份，x、y 为当前底缘位置，rim_matched=0 表示该帧使用运动预测。时间以每段第一帧为零，帧号从 0 起。
@@ -36,7 +34,7 @@ CSV 每帧三行。initial_slot 是杯子的初始身份，x、y 为当前底缘
 A/B/C 是开场从左到右的杯子身份。黄框标目标杯，橙框及问号表示运动预测，绿圈标可见方块。底部显示采集时间、帧号和三杯停稳计时，作答后锁定计时与答案直到片尾。视频以各片段平均帧率编码，保留每个原始帧。导出器将 RGB 转为 OpenCV 编码所需的 BGR。
 
 ```sh
-python export_video.py ~/Downloads/swap_cups/episode_001.hdf5 examples/episode_001_tracking.mp4
+uv run --locked export_video.py ~/Downloads/swap_cups/episode_001.hdf5 examples/episode_001_tracking.mp4
 ```
 
 ## Linux 相机实时测试
@@ -45,13 +43,13 @@ python export_video.py ~/Downloads/swap_cups/episode_001.hdf5 examples/episode_0
 
 ```sh
 sudo apt update
-sudo apt install -y git python3-venv v4l-utils libgl1 libglib2.0-0
+sudo apt install -y git curl v4l-utils libgl1 libglib2.0-0
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 git clone https://github.com/XsystemH/CupsTracker.git
 cd CupsTracker
-python3 -m venv .venv-live
-source .venv-live/bin/activate
-python -m pip install -r requirements-live.txt
-python live.py --list
+uv sync --locked
+uv run --locked live.py --list
 v4l2-ctl --list-devices
 ```
 
@@ -59,9 +57,16 @@ v4l2-ctl --list-devices
 
 ```sh
 v4l2-ctl -d /dev/video2 --list-formats-ext
-python live.py --camera /dev/video2
+uv run --locked live.py --camera /dev/video2
 ```
 
 也可把 --list 打印的 /dev/v4l/by-id/... 路径直接传给 --camera，避免重新插拔后编号变化。程序请求 640×480、30 FPS，启动时打印实际收到的分辨率。画面中让三杯横向排开、位于下半幅，杯高约占画面高度的五分之一，参照上方示例图调整相机角度和距离。先摆好三杯、露出绿色方块，按 R 重新初始化。确认 A/B/C 分别贴在三个杯底，方块有绿圈，盖住它后应在对应杯上出现黄框。交换后让全部杯子静止三秒，观察决定和揭杯是否一致。橙框表示运动预测。按 R 开新一轮，Q 或 Esc 退出。
 
-纯 SSH 终端可运行 `python live.py --camera /dev/video2 --headless`，答案输出到终端，Ctrl+C 结束。权限不足时用 `ls -l /dev/video2` 和 `id` 检查设备访问权限；若所属组为 video，可用 `sudo usermod -aG video "$USER"` 并重新登录。若无法采图，先关闭占用相机的程序，并确认节点支持彩色采集。若能采图但三杯编号错位，先对照示例调整构图，再按 R 重置。
+纯 SSH 终端可在仓库目录执行以下命令安装无界面版 OpenCV 并启动相机。
+
+```sh
+uv sync --locked --no-default-groups --group headless
+.venv/bin/python live.py --camera /dev/video2 --headless
+```
+
+终端运行时，答案输出到终端，Ctrl+C 结束。权限不足时用 `ls -l /dev/video2` 和 `id` 检查设备访问权限；若所属组为 video，可用 `sudo usermod -aG video "$USER"` 并重新登录。若无法采图，先关闭占用相机的程序，并确认节点支持彩色采集。若能采图但三杯编号错位，先对照示例调整构图，再按 R 重置。
