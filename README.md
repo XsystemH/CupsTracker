@@ -46,8 +46,8 @@ python export_video.py ~/Downloads/swap_cups/episode_001.hdf5 examples/episode_0
 ```sh
 sudo apt update
 sudo apt install -y git python3-venv v4l-utils libgl1 libglib2.0-0
-git clone https://github.com/XsystemH/swap-cup-tracker.git
-cd swap-cup-tracker
+git clone https://github.com/XsystemH/cups.git
+cd cups
 python3 -m venv .venv-live
 source .venv-live/bin/activate
 python -m pip install -r requirements-live.txt
